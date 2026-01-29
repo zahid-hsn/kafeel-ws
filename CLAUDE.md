@@ -83,3 +83,39 @@ git push
 - Swagger: http://localhost:8000/docs
 - Health: http://localhost:8000/health
 - Items: http://localhost:8000/items (from database)
+
+## Learnings & Patterns
+
+### Parallel Agent Strategy
+For large features, split work across 3 parallel swift-coder agents:
+1. **Services agent** - Core business logic, persistence, monitoring
+2. **UI agent** - Views, charts, navigation
+3. **Features agent** - Specific features like scoring, settings
+
+### Swift Package Manager Multi-Module
+When splitting into library + executable:
+```swift
+.target(name: "Core", path: "Sources/Core"),
+.executableTarget(name: "App", dependencies: ["Core"], path: "Sources/App"),
+.testTarget(name: "Tests", dependencies: ["Core"], path: "Tests")
+```
+- Test target depends on library, NOT executable
+- Types in library must be `public` to be visible in app/tests
+- IDE may show false "No such module" errors - run `swift build` to fix
+
+### Swift 6 Concurrency Gotchas
+- `@MainActor` classes can't have `deinit` that calls actor-isolated methods
+- Use explicit `cleanup()` or `stopMonitoring()` methods instead
+- `@Observable` replaces `ObservableObject` - no `@Published` needed
+- For `@MainActor` to `@MainActor` calls, no `await` required
+
+### SwiftData Tips
+- Use `ModelConfiguration(isStoredInMemoryOnly: true)` for tests
+- Models must be `public` for cross-module access
+- `@Attribute(.unique)` for unique constraints
+- Singletons work well: `static let shared = PersistenceService()`
+
+### Testing Strategy
+- Pure functions (like FocusScoreCalculator) are easy to test
+- Services need in-memory SwiftData containers
+- NSWorkspace monitoring can be tested by calling handlers directly
